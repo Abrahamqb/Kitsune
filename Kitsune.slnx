@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Kitsune/Kitsune.vcxproj" Id="513507fa-b465-4b07-9af8-701bfda75b2c" />
+</Solution>
