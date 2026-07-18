@@ -145,6 +145,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\FileDialog.cpp" />
     <ClCompile Include="src\FTPManager.cpp" />
     <ClCompile Include="src\glad.c" />
     <ClCompile Include="src\GoldHEN.cpp" />
@@ -159,8 +160,12 @@
     <ClCompile Include="thirdparty\imgui\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\FileDialog.h" />
     <ClInclude Include="src\FTPManager.h" />
+    <ClInclude Include="src\GoldHEN.h" />
+    <ClInclude Include="src\http\httplib.h" />
     <ClInclude Include="src\Interface.h" />
+    <ClInclude Include="src\Other\portable-file-dialogs.h" />
     <ClInclude Include="thirdparty\imgui\imconfig.h" />
     <ClInclude Include="thirdparty\imgui\imgui.h" />
     <ClInclude Include="thirdparty\imgui\imgui_impl_glfw.h" />

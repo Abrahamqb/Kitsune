@@ -1,17 +1,23 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "Interface.h"
 #include "imgui.h"
+#include <thread>
 #include <iostream>
-#include <vector>  // <-- NUEVO: Para guardar la lista de mensajes
-#include <string>  // <-- NUEVO: Para manejar los textos de los logs
+#include <vector> 
+#include <string>
 #include "FTPManager.h"
+#include "GoldHEN.h"
+#include "FileDialog.h"
+
 
 namespace Kitsune {
     namespace Interface {
 
         // Default Settings
         struct AppState {
-            bool IsConnect = false;
-            char consoleIP[64] = "192.168.18.17";
+            bool IsConnect = false; //Tener por default en false, solo true para Testeo
+            char consoleIP[64] = "192.168.18.17"; //127.0.0.1
+            char PcIP[64] = "192.168.18.19";
             int port = 2121;
             char RemotePath[64] = "/data/GoldHEN";
             bool Debug = false;
@@ -25,6 +31,8 @@ namespace Kitsune {
         void InitMenu();
         void MainMenu();
         void Output();
+        void ModManager();
+        void PkgSender();
 
         void AddLog(const std::string& mensaje) {
             state.logs.push_back(mensaje);
@@ -75,6 +83,13 @@ namespace Kitsune {
         }
 
         // Main menu es el menu principal
+        struct InterfaceMenu
+        {
+            bool showModManager = false; // Variable para controlar la visibilidad del Mod Manager
+            bool showPkgSender = false; // Variable para controlar la visibilidad del Pkg Sender
+        };
+        InterfaceMenu _Menu;
+
         void MainMenu() {
             ImGui::Begin("Kitsune Control Panel - Connected");
             ImGui::Text("Welcome to the Kitsune Control Panel!");
@@ -92,8 +107,18 @@ namespace Kitsune {
                 AddLog("[FTP] Listing directory:\n" + resultado);
             }
 
-            ImGui::Text("Settings (Coming soon)");
+            ImGui::Text("Options");
             ImGui::Spacing();
+            ImGui::Separator();
+
+            //Butones de los menus
+			if (ImGui::Button("Mods/Plugins Manager")) _Menu.showModManager = !_Menu.showModManager;
+            ImGui::Spacing();
+            if (ImGui::Button("Pkg Sender")) _Menu.showPkgSender = !_Menu.showPkgSender;
+
+			if (_Menu.showModManager) ModManager();
+            if (_Menu.showPkgSender) PkgSender();
+
             ImGui::Separator();
             ImGui::Spacing();
 
@@ -103,7 +128,92 @@ namespace Kitsune {
             }
             ImGui::End();
         }
+        //Pkg Sender
+		bool isSendingPkg = false; // Variable para controlar el estado de envío de PKG
+		bool isUseLan = false; // Variable para controlar si se usa LAN o no
+		char pkgPath[256] = "C:\\game.pkg"; // Ruta del archivo PKG a enviar
+		void PkgSender() {
+			ImGui::Begin("Kitsune Pkg Sender");
+			ImGui::Text("Welcome to the Kitsune Pkg Sender!");
+			ImGui::Text("Here you can send PKG files to your console.");
+			ImGui::Spacing();
+			ImGui::Separator();
+			if (ImGui::Checkbox("Use Lan", &isUseLan)) {
+				if (isUseLan) {
+					AddLog("[UI] Using LAN for PKG sending.");
+				}
+				else {
+					AddLog("[UI] Using default Wifi config for PKG sending.");
+				}
+			}
 
+            ImGui::Spacing();
+			ImGui::Text("PC IP:");
+            ImGui::InputText("##LocalIP", state.PcIP, IM_ARRAYSIZE(state.PcIP)); ImGui::SameLine();
+			if (ImGui::Button("Detect Local IP")) {
+				//std::string detectedIP = Kitsune::FTP::GetLocalIPAddress();
+				//if (!detectedIP.empty()) {
+				//	strncpy(state.PcIP, detectedIP.c_str(), sizeof(state.PcIP) - 1);
+				//	state.PcIP[sizeof(state.PcIP) - 1] = '\0';
+				//	AddLog("[UI] Detected Local IP: " + detectedIP);
+				//}
+				//else {
+				//	AddLog("[UI] Failed to detect local IP.");
+				//}
+			}
+			ImGui::InputText("##PkgPath", pkgPath, IM_ARRAYSIZE(pkgPath)); ImGui::SameLine();
+			if (ImGui::Button("Browse PKG")) 
+            {
+				std::string selectedPath;
+				if (OpenFileDialog(selectedPath, "Select PKG File", "*.pkg")) {
+					strncpy(pkgPath, selectedPath.c_str(), sizeof(pkgPath) - 1);
+					pkgPath[sizeof(pkgPath) - 1] = '\0';
+					AddLog("[UI] Selected PKG: " + selectedPath);
+				}
+			}
+
+            if (isSendingPkg) {
+                ImGui::BeginDisabled();
+                ImGui::Button("Sending PKG... Please wait");
+                ImGui::EndDisabled();
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Server running. Check your PS4/PS5 Notifications!");
+            }
+            else {
+                if (ImGui::Button("Send PKG to PS4/PS5")) {
+                    AddLog("[UI] Initializing transfer sequence...");
+                    isSendingPkg = true;
+                    std::thread workerThread([]() 
+                    {
+                        std::thread ThreadServer(Kitsune::GoldHEN::StartLocalWebServer, pkgPath);
+                        ThreadServer.detach();
+
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+                        if (Kitsune::GoldHEN::SendRPICommand(state.consoleIP, state.PcIP, pkgPath)) {
+                            AddLog("[UI] PKG command accepted by PS4 successfully!");
+                            isSendingPkg = false;
+                        }
+                        else {
+                            AddLog("[UI] Failed to send PKG. Is RPI app open on PS4?");
+                            isSendingPkg = false;
+                        }
+                     });
+
+                    workerThread.detach();
+                }
+            }
+			ImGui::End();
+		}
+        //ModManager
+		void ModManager() {
+			ImGui::Begin("Kitsune Mod Manager");
+			ImGui::Text("Welcome to the Kitsune Mod Manager!");
+			ImGui::Text("Here you can manage your mods/plugins.");
+			ImGui::Spacing();
+			ImGui::Separator();
+			//Mod Manager
+			ImGui::End();
+		}
         // OutPut
         void Output() {
             ImGui::Begin("Kitsune - Output");
