@@ -81,10 +81,46 @@ namespace Kitsune {
 				return responseString;
 			}
 			else {
-				return "Error al listar: " + std::string(curl_easy_strerror(res));
+				return "Error listing directory: " + std::string(curl_easy_strerror(res));
 			}
 
 		}
 
-}
+		std::string GetLocalIP() {
+			CURL* curl;
+			CURLcode res;
+			std::string result = "Error: Unknown error";
+
+			curl = curl_easy_init();
+			if (curl) {
+				curl_easy_setopt(curl, CURLOPT_URL, "https://google.com");
+				curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+
+				curl_easy_setopt(curl, CURLOPT_INTERFACE, "0.0.0.0");
+
+				res = curl_easy_perform(curl);
+
+				if (res == CURLE_OK) {
+					char* localIP = nullptr;
+					curl_easy_getinfo(curl, CURLINFO_LOCAL_IP, &localIP);
+					if (localIP) {
+						result = std::string(localIP);
+					}
+					else {
+						result = "Error: IP not extracted";
+					}
+				}
+				else {
+					result = "Network error: " + std::string(curl_easy_strerror(res));
+				}
+				curl_easy_cleanup(curl);
+			}
+			else {
+				result = "Error: Failed to initialize CURL";
+			}
+
+			return result;
+		}
+
+	}
 }

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <memory> // Requerido para std::unique_ptr
+#include <memory> 
 #include <curl/curl.h>
 #include <filesystem>
 
@@ -61,12 +61,12 @@ namespace Kitsune
                     std::cout << "[Server] Served file: " << currentActivePkgPath << std::endl;
                 });
 
-            std::cout << "Starting local web server on http://0.0.0" << std::endl;
+            std::cout << "Starting local web server on http://0.0.0.0" << std::endl;
             isServerRunning = true;
             svr->listen("0.0.0.0", 8080);
         }
 
-        bool SendRPICommand(std::string PsIp, std::string PCIP, std::string PKGName) {
+        bool SendRPICommand(std::string PsIp, std::string PCIP, int Port, std::string PKGName) {
             if (PKGName.size() >= 2 && PKGName.front() == '"' && PKGName.back() == '"') {
                 PKGName = PKGName.substr(1, PKGName.size() - 2);
             }
@@ -85,7 +85,7 @@ namespace Kitsune
             }
             std::string FileName = std::filesystem::path(PKGName).filename().string();
 
-            std::string RPIUrl = "http://" + PsIp + ":12800/api/install";
+            std::string RPIUrl = "http://" + PsIp + ":" + std::to_string(Port) + "/api/install";
 
             std::string UrlPC = "http:\\/\\/" + PCIP + ":8080\\/" + FileName;
             std::string JsonPayload = "{\"type\":\"direct\",\"packages\":[\"" + UrlPC + "\"]}";

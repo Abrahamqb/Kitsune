@@ -6,6 +6,6 @@ namespace Kitsune
 {
 	namespace GoldHEN {
 		void StartLocalWebServer(std::string PathPKG);
-		bool SendRPICommand(std::string PsIp, std::string PCIP, std::string PKGName);
+		bool SendRPICommand(std::string PsIp, std::string PCIP, int Port, std::string PKGName);
 	}
 }

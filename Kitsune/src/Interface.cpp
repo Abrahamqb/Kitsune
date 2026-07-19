@@ -8,6 +8,7 @@
 #include "FTPManager.h"
 #include "GoldHEN.h"
 #include "FileDialog.h"
+#include "WinLanSetup.h"
 
 
 namespace Kitsune {
@@ -17,11 +18,11 @@ namespace Kitsune {
         struct AppState {
             bool IsConnect = false; //Tener por default en false, solo true para Testeo
             char consoleIP[64] = "192.168.18.17"; //127.0.0.1
-            char PcIP[64] = "192.168.18.19";
+            char PcIP[64] = "127.0.0.1";
             int port = 2121;
             char RemotePath[64] = "/data/GoldHEN";
             bool Debug = false;
-            char consoleLanIP[64] = "127.0.0.2";
+            char consoleLanIP[64] = "10.0.0.2";
 
             std::vector<std::string> logs;
             bool scrollToBottom = false; 
@@ -43,7 +44,6 @@ namespace Kitsune {
         }
 
         void Render() {
-            Output();
             if (state.IsConnect == false)
             {
                 InitMenu();
@@ -52,6 +52,7 @@ namespace Kitsune {
             {
                 MainMenu();
             }
+            Output();
         }
 
         // InitMenu
@@ -132,32 +133,128 @@ namespace Kitsune {
         //Pkg Sender
 		bool isSendingPkg = false; // Variable para controlar el estado de envío de PKG
 		bool isUseLan = false; // Variable para controlar si se usa LAN o no
-        char pkgPath[4096] = "C:\\game.pkg"; // Safe 4096 buffer size
+		bool isUseCustomPort = false; // Variable para controlar si se usa un puerto personalizado
+		int RpiPort = 12800; // Default port for RPI
+        char pkgPath[4096] = "C:\\game.pkg"; 
+        static std::vector<Kitsune::WinLanSetup::EthernetAdapter> adapters;
+        static int selectedAdapter = 0;
+        static bool initialized = false;
+
         void PkgSender() {
             ImGui::Begin("Kitsune Pkg Sender");
             ImGui::Text("Welcome to the Kitsune Pkg Sender!");
             ImGui::Text("Here you can send PKG files to your console.");
+            ImGui::BulletText("Use LAN: Faster transfers. Requires a LAN cable.");
+            ImGui::BulletText("Custom Port: Enable if your RPI uses a port other than 12800.");
             ImGui::Spacing();
             ImGui::Separator();
 
-            if (ImGui::Checkbox("Use Lan", &isUseLan)) {
-                if (isUseLan) AddLog("[UI] Using LAN for PKG sending.");
-                else AddLog("[UI] Using default Wifi config for PKG sending.");
+            if (!initialized)
+            {
+                adapters = Kitsune::WinLanSetup::GetEthernetAdapters();
+                initialized = true;
             }
-
-            if (isUseLan) {
-                ImGui::Text("Console Lan IP:");
-                ImGui::InputText("##ConsoleLanIP", state.consoleLanIP, IM_ARRAYSIZE(state.consoleLanIP)); ImGui::SameLine();
-                if (ImGui::Button("Set")) {
-                    // Detect Console Lan IP
+            if (ImGui::Checkbox("Use LAN", &isUseLan))
+            {
+                if (isUseLan)
+                {
+                    AddLog("[UI] LAN mode enabled.");
+                }
+                else
+                {
+                    AddLog("[UI] Restoring DHCP configuration...");
+                    if (!adapters.empty() && selectedAdapter < (int)adapters.size())
+                    {
+                        if (Kitsune::WinLanSetup::DisableLanMethod(adapters[selectedAdapter].NameW))
+                        {
+                            AddLog("[UI] LAN method disabled.");
+                        }
+                    }
                 }
             }
+
+            if (isUseLan)
+            {
+                if (adapters.empty())
+                {
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1),"No Ethernet adapters found.");
+                    if (ImGui::Button("Refresh"))
+                    {
+                        adapters = Kitsune::WinLanSetup::GetEthernetAdapters();
+                    }
+                }
+                else
+                {
+                    if (selectedAdapter >= (int)adapters.size()) selectedAdapter = 0;
+
+                    if (ImGui::BeginCombo("Ethernet Adapter",adapters[selectedAdapter].Name.c_str()))
+                    {
+                        for (int i = 0; i < adapters.size(); i++)
+                        {
+                            bool selected = (selectedAdapter == i);
+
+                            if (ImGui::Selectable(
+                                adapters[i].Name.c_str(),
+                                selected))
+                            {
+                                selectedAdapter = i;
+                            }
+
+                            if (selected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+
+                        ImGui::EndCombo();
+                    }
+
+                    if (ImGui::Button("Refresh"))
+                    {
+                        adapters = Kitsune::WinLanSetup::GetEthernetAdapters();
+
+                        if (selectedAdapter >= (int)adapters.size()) selectedAdapter = 0;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Configure LAN"))
+                    {
+                        if (Kitsune::WinLanSetup::EnableLanMethod(adapters[selectedAdapter].NameW))
+                        {
+                            AddLog("[UI] LAN configured successfully.");
+                        }
+                        else
+                        {
+                            AddLog("[UI] Failed to configure LAN.");
+                        }
+                    }
+                }
+                ImGui::Spacing();
+                ImGui::Text("Console LAN IP:");
+                ImGui::InputText("##ConsoleLanIP", state.consoleLanIP,IM_ARRAYSIZE(state.consoleLanIP));
+
+                ImGui::Spacing();
+            }
+
+            if (ImGui::Checkbox("Use Custom Port", &isUseCustomPort)) {
+                if (isUseCustomPort) AddLog("[UI] Using custom port for PKG sending.");
+                else AddLog("[UI] Using default port (12800) for PKG sending.");
+            }
+
+			if (isUseCustomPort) {
+				ImGui::Text("RPI Port:");
+				ImGui::InputInt("##RpiPort", &RpiPort);
+                ImGui::Spacing();
+			}
+            
 
             ImGui::Spacing();
             ImGui::Text("PC IP:");
             ImGui::InputText("##LocalIP", state.PcIP, IM_ARRAYSIZE(state.PcIP)); ImGui::SameLine();
             if (ImGui::Button("Detect Local IP")) {
-                // IP
+                std::string localIP = Kitsune::FTP::GetLocalIP();
+                if (!localIP.empty()) 
+                {
+                    strncpy(state.PcIP, localIP.c_str(), sizeof(state.PcIP) - 1);
+                    state.PcIP[sizeof(state.PcIP) - 1] = '\0';
+                }
             }
 
             ImGui::InputText("##PkgPath", pkgPath, IM_ARRAYSIZE(pkgPath)); ImGui::SameLine();
@@ -186,16 +283,18 @@ namespace Kitsune {
                     isSendingPkg = true;
                     std::string localPkgPath = std::string(pkgPath);
                     std::string localPcIP = std::string(state.PcIP);
-                    std::string localConsoleIP = std::string(state.consoleIP);
+					std::cout << "[UI] Local PC IP: " << localPcIP << std::endl;
+                    std::string localConsoleIP = isUseLan ? std::string(state.consoleLanIP) : std::string(state.consoleIP);
+                    int localRpiPort = RpiPort;
 
-                    std::thread workerThread([localPkgPath, localPcIP, localConsoleIP]()
+                    std::thread workerThread([localPkgPath, localPcIP, localConsoleIP, localRpiPort]()
                         {
                             std::thread ThreadServer(Kitsune::GoldHEN::StartLocalWebServer, localPkgPath);
                             ThreadServer.detach();
 
                             std::this_thread::sleep_for(std::chrono::seconds(1));
 
-                            if (Kitsune::GoldHEN::SendRPICommand(localConsoleIP, localPcIP, localPkgPath)) {
+                            if (Kitsune::GoldHEN::SendRPICommand(localConsoleIP, localPcIP, localRpiPort, localPkgPath)) {
                                 AddLog("[UI] PKG command accepted by PS4 successfully!");
                                 isSendingPkg = false;
                             }
@@ -244,5 +343,5 @@ namespace Kitsune {
             ImGui::End();
         }
 
-    } // namespace Interface
-} // namespace Kitsune
+    } 
+}
