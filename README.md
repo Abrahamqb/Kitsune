@@ -18,15 +18,6 @@ Kitsune permite gestionar juegos y aplicaciones instalados en una PlayStation co
 
 El modulo `FTPManager` establece una conexion FTP con la consola usando las credenciales por defecto (`ps4ftp` / `12345`). La conexion se configura en modo pasivo con timeout de 5 segundos.
 
-Una vez conectado, el modulo `GoldHEN` recorre los directorios remotos `/data/GoldHEN` y `/user/app` en busca de archivos `sfo.xml`. Al encontrarlos, parsea el XML y extrae:
-
-- **Titulo** del juego o aplicacion
-- **ID** del contenido (TITLE_ID)
-- **Icono** en formato PNG (si existe en el directorio)
-- **Ruta completa** en el sistema de archivos de la consola
-
-Los resultados se muestran en la interfaz grafica con iconos renderizados. El usuario puede seleccionar un juego para explorar su directorio.
-
 **Funciones principales del modulo FTP:**
 
 | Funcion | Descripcion |
@@ -127,13 +118,6 @@ La interfaz esta dividida en tres paneles principales:
 - Boton de conexion/desconexion FTP
 - Boton para detectar IP local automaticamente
 
-### Panel de Juegos
-
-- Lista de juegos y aplicaciones encontrados via FTP
-- Iconos renderizados de cada titulo
-- Boton para explorar directorio de un juego seleccionado
-- Boton para enviar PKG (activa metodo WiFi o LAN segun configuracion)
-
 ### Panel de Logs
 
 - Registro de eventos de la aplicacion
@@ -151,7 +135,7 @@ Kitsune/
     main.cpp              Punto de entrada. Inicializacion de GLFW, OpenGL, ImGui.
     Interface.*           Logica de la interfaz grafica. Paneles, tabs, renderizado.
     FTPManager.*          Conexion y operaciones FTP con la consola.
-    GoldHEN.*             Parseo de XML GoldHEN, servidor HTTP local, comando RPI.
+    GoldHEN.*             servidor HTTP local, comando RPI.
     WinLanSetup.*         Configuracion de red y sharing LAN via PowerShell/COM.
     FileDialog.*          Selector de archivos nativo Windows.
     http/
@@ -206,8 +190,7 @@ Proyecto configurado para Visual Studio (solution `Kitsune.slnx`).
 1. Ejecutar `Kitsune.exe`
 2. Ingresar la IP de la consola PlayStation
 3. Hacer clic en **Conectar** para establecer la conexion FTP
-4. Navegar la lista de juegos y aplicaciones
-5. Para enviar un PKG, seleccionar el metodo (WiFi o LAN) y el archivo
+4. Para enviar un PKG, seleccionar el metodo (WiFi o LAN) y el archivo
 
 ---
 
